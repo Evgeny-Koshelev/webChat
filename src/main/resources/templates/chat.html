@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>Чат</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script>
+        var stompClient = null;
+
+        function sendMessage() {
+        var messageContent = document.getElementById('message').value;
+        var username = document.getElementById('username').value;
+        var message = { 'username': username, 'content': messageContent };
+        stompClient.send("/app/send", {}, JSON.stringify(message));
+        document.getElementById('message').value = '';
+        }
+
+        function connect() {
+        var socket = new SockJS('/chat');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function (frame) {
+        console.log('Connected: ' + frame);
+        stompClient.send("/app/join", {}, {});
+        stompClient.subscribe('/topic/messages', function (message) {
+        showMessage(JSON.parse(message.body));
+        });
+        });
+
+        window.onbeforeunload = function() {
+        stompClient.send("/app/leave", {}, {});
+        };
+        }
+
+        function showMessage(message) {
+        var messageArea = document.getElementById('messages');
+        messageArea.innerHTML += '<div><strong>' + message.username + '</strong>: ' + message.content + '</div>';
+        }
+
+        window.onload = function() {
+        connect();
+        };
+    </script>
+</head>
+<body>
+<h1>Чат</h1>
+<label for="username"></label><input type="text" id="username" placeholder="Введите ваш ник" />
+<div id="messages" style="border: 1px solid #ccc; height: 300px; overflow-y: scroll;">
+    <div th:each="message : ${messages}">
+        <strong th:text="${message.username}"></strong>: <span th:text="${message.content}"></span>
+    </div>
+</div>
+<label for="message"></label><input type="text" id="message" placeholder="Введите сообщение" />
+<button onclick="sendMessage()">Отправить</button>
+
+<h2>Активные пользователи</h2>
+<ul id="active-users">
+    <th:block th:each="user : ${activeUsers}">
+        <ol reversed="reversed">
+            <li th:text="${user}"></li>
+        </ol>
+    </th:block>
+</ul>
+
+</body>
+</html>
